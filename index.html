@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Friendly Game Canvas</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #222;
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        canvas {
+            background-color: #111;
+            border: 2px solid #444;
+            border-radius: 8px;
+            width: 100%;
+            max-height: 70vh;
+            display: block;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Mobile Controls Layout */
+        #mobile-controls {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 0 5px;
+        }
+
+        .control-btn {
+            flex: 1;
+            height: 65px;
+            background-color: #444;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 6px #222;
+            transition: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Pressed state mimicking physical button depth */
+        .control-btn.active, .control-btn:active {
+            background-color: #555;
+            box-shadow: 0 2px #222;
+            transform: translateY(4px);
+        }
+
+        #btn-jump {
+            background-color: #007acc;
+            box-shadow: 0 6px #004d80;
+            flex: 1.2; /* Slightly wider jump button for easier access */
+        }
+
+        #btn-jump.active, #btn-jump:active {
+            background-color: #008ae6;
+            box-shadow: 0 2px #004d80;
+        }
+
+        /* Media query to show controls cleanly on screens that support touch, 
+           or as a helpful layout asset for smaller display footprints */
+        @media (min-width: 1024px) {
+            /* Optional: You can uncomment the line below if you want to completely 
+               hide these on massive desktop displays, though keeping them active 
+               guarantees accessibility testing works anywhere. */
+            /* #mobile-controls { display: none; } */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- The Game Canvas -->
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+        <!-- On-Screen Touch Controls -->
+        <div id="mobile-controls">
+            <button id="btn-left" class="control-btn">◀ Left</button>
+            <button id="btn-jump" class="control-btn">Jump</button>
+            <button id="btn-right" class="control-btn">Right ▶</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Global Input State tracking object
+        const inputState = {
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        // --- Keyboard Event Listeners ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = true;
+            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') inputState.jump = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = false;
+            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') inputState.jump = false;
+        });
+
+        // --- Touch Event Bindings for Mobile Controls ---
+        function bindTouchControl(buttonId, stateKey) {
+            const button = document.getElementById(buttonId);
+
+            const startPress = (e) => {
+                e.preventDefault(); // Prevents sticky emulation highlights and double-activation loops
+                inputState[stateKey] = true;
+                button.classList.add('active');
+            };
+
+            const endPress = (e) => {
+                e.preventDefault();
+                inputState[stateKey] = false;
+                button.classList.remove('active');
+            };
+
+            // Touch support for mobile displays
+            button.addEventListener('touchstart', startPress, { passive: false });
+            button.addEventListener('touchend', endPress, { passive: false });
+            button.addEventListener('touchcancel', endPress, { passive: false });
+
+            // Mouse fallback integration for standard desktop interactions/debugging
+            button.addEventListener('mousedown', () => { inputState[stateKey] = true; });
+            window.addEventListener('mouseup', () => { 
+                inputState[stateKey] = false; 
+                button.classList.remove('active');
+            });
+        }
+
+        // Bind HTML buttons to the input tracking engine
+        bindTouchControl('btn-left', 'left');
+        bindTouchControl('btn-jump', 'jump');
+        bindTouchControl('btn-right', 'right');
+
+
+        // --- Sample Placeholder Game Loop ---
+        // Replace this implementation logic directly with your core physics loop engine
+        const player = { x: 385, y: 380, width: 30, height: 30, vy: 0, isJumping: false };
+
+        function update() {
+            if (inputState.left) player.x -= 5;
+            if (inputState.right) player.x += 5;
+            
+            // Jump execution
+            if (inputState.jump && !player.isJumping) {
+                player.vy = -12;
+                player.isJumping = true;
+            }
+
+            // Simple gravity application
+            player.vy += 0.6;
+            player.y += player.vy;
+
+            // Simple boundary floor collisions
+            if (player.y >= 380) {
+                player.y = 380;
+                player.vy = 0;
+                player.isJumping = false;
+            }
+
+            // Screen boundary clamping
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Render placeholder environment reference elements
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 410, canvas.width, 40);
+
+            // Render Player block
+            ctx.fillStyle = '#ff3366';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // Active Input status indicator texts
+            ctx.fillStyle = '#888';
+            ctx.font = '14px monospace';
+            ctx.fillText(`Inputs Active - Left: ${inputState.left} | Jump: ${inputState.jump} | Right: ${inputState.right}`, 20, 30);
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Initialize execution hook
+        loop();
+    </script>
+</body>
+</html>
